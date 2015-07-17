@@ -106,7 +106,8 @@ def run(bodies, SCALE):
 
         # Update positions and draw on canvas
         body.position = body.velocity * timestep
-        body.goto(body.position[0]*SCALE, body.position[1]*SCALE)
+        body.goto(body.position[0]*SCALE, body.position[1]*SCALE, \
+                    body.position[2]*SCALE)
         body.dot(3)
 
     pass
@@ -125,7 +126,7 @@ def main():
     sun_pos = np.array([0,0,0])
     sun_vel = [0,0,0]
     earth_pos = np.array([1*AU, 0, 0])
-    earth_vel = np.array([0, 3e4])              # earth = 30 km per sec
+    earth_vel = np.array([0, 3e4, 0])              # earth = 30 km per sec
     
     sun = Body('Sun', 2e30, 'yellow', sun_pos, sun_vel), 
     earth = Body('Earth', 5.9742e24, 'blue', earth_pos, earth_vel)
