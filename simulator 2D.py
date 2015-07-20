@@ -5,21 +5,23 @@ N body simulator
 Author: Eryn Cangi
 For CIERA REU summer 2015
 
+2-body simulation, using Newtonian mechanics. Allows creation of multiple body 
+objects, which are Turtle types. Body class has a method to calculate forces
+from all other bodies in the system.
+
 Heavily lifted from http://fiftyexamples.readthedocs.org/en/latest/gravity.html
 License is MIT license, free to use and modify as desired for any use.
-
-This one works in 2D, for preliminary testing purposes.
 """
 
 import turtle as t
 import numpy as np
 from math import sin, cos, atan2
-#import pdb
+
     
 class Body(t.Turtle):
     '''
     Defines a body object and its attributes, i.e. a planet, satellite, etc.
-    Inherits from Turtle for easy drawing
+    Inherits from Turtle for drawing purposes.
     '''
 
     def __init__(self, name, mass, color, pos, vel):
@@ -37,27 +39,28 @@ class Body(t.Turtle):
         
     def force(self, other):
         '''
-        Calculates force between the object and another one
+        Accepts as input another Body object and returns the calculated 
+        gravitational force between the object and the other.
         '''
         
         G = 6.67384 * 10**(-11)
 
         if self is other:
-            raise ValueError("Can't attract object to itself")
+            raise ValueError("Can't attract self. This error should have been" 
+                                "handled elsewhere...")
 
-        # calculate distance
+        # Calculate distance between objects
         # can possibly improve per: http://bit.ly/1I6rLjj
         dr = self.location - other.location         # format [dx, dy]
         r = np.linalg.norm(dr) 
         
-        # calculate force
+        # Force, from Newton's law
         fg = -(G * self.mass * other.mass) / (r**2)
         
-        # calculate direction of force, polar coordinates; use of atan2 
-        # guarantees integrity of directionality 
+        # Calculate direction; use of atan2 guarantees accuracy of sign
         theta = atan2(dr[1], dr[0])
         
-        # calculate force components, which will be returned
+        # Calculate force components, which need to be returned
         gravity = np.array([fg * cos(theta), fg * sin(theta)])
         
         return gravity
@@ -76,24 +79,22 @@ def info(step, bodies, AU):
             body.velocity[0], body.velocity[1])
         print(s)
     print()
+    return
 
 
 def run(bodies, SCALE, AU):
     '''
-    Runs the main simulation
+    Runs the main simulation. Accepts as input the SCALE and AU variables, as
+    they are needed here as well.
     '''
     
-    timestep = 24*3600                  # start with one day as the time step
-    
-    #for body in bodies:
-        #body.penup()
-        #body.hideturtle()
+    timestep = 24*3600                 # Step = 1 day; in seconds
       
     step = 1
     while True:
         info(step, bodies, AU)
         step += 1
-
+        
         force = {}                     # dictionary of forces from other bodies
         
         # Add up all of the forces exerted on 'body'.
@@ -106,29 +107,26 @@ def run(bodies, SCALE, AU):
                 total_fx += grav_vector[0]
                 total_fy += grav_vector[1]
         
-            # Record the total force exerted in a dictionary
+            # Record in dict: keys = body, values = total force on that body
             force[body] = (total_fx, total_fy)
         
-        # Update velocities based on force; vel = accel * time, pos = vel*time
+        # Actual diffeq; draws on canvas
         for body in bodies:
-            
-            # obscure the turtles
-            body.hideturtle()
-            
             fx, fy = force[body]
             body.velocity += (np.array([fx, fy]) / body.mass) * timestep
             body.location += body.velocity * timestep
+        # end diffeq
             
             # next spot for turtle to move to
             next_position = body.location * SCALE
 
             if body.name == 'Sun':
+                body.hideturtle()
                 body.penup()
                 body.goto(next_position)
                 body.dot(50)
-            elif body.name == 'Earth':
+            elif body.name == 'Earth' or 'Mars':
                 body.shape('circle')
-                body.showturtle()
                 if step==2:                      # move to start w/o a line drawn
                     body.penup()
                     body.goto(next_position)
@@ -136,7 +134,7 @@ def run(bodies, SCALE, AU):
                 else:
                     body.goto(next_position)
         
-        if step == 1000:
+        if step == 5000:
             break
 
 
@@ -146,23 +144,27 @@ def main():
     '''  
     
     # Set the mood
-    bgcolor('black')
+    t.bgcolor('black')
     
     # Assumed scale: 100 pixels = 1AU.
-    AU = 149.6e9     # 149.6 billion meters is one astronomical unit
-    SCALE = 250 / AU                            # 2e-9; 
+    AU = 149.6e9                # 149.6 billion meters is one astronomical unit
+    SCALE = 250 / AU                            # 2e-9;  100 px
     
     # Declare positions and velocities for two bodies
-    sun_pos = np.array([0,0])
-    sun_vel = [0,0]
-    earth_pos = np.array([-1*AU, 0])
-    earth_vel = np.array([0, 3e4])              # earth = 30 km per sec
+    sun_loc = np.array([0,0])
+    sun_vel = np.array([0,0])
     
-    sun = Body('Sun', 2e30, 'yellow', sun_pos, sun_vel)
-    earth = Body('Earth', 5.9742e24, 'blue', earth_pos, earth_vel)
-
+    earth_loc = np.array([-1*AU, 0])
+    earth_vel = np.array([0, 35000])              # shows elliptical
+    
+    #mars_loc = np.array([(-227.9e9/146.6e9)*AU,0])
+    #mars_vel = np.array([0,24070])
+    
+    sun = Body('Sun', 2e30, 'yellow', sun_loc, sun_vel)
+    earth = Body('Earth', 5.9742e24, 'blue', earth_loc, earth_vel)
+    #mars = Body('Mars', 6.39e23, 'red', mars_loc, mars_vel)
+    
     run([sun, earth], SCALE, AU)
-    
     
 if __name__ == '__main__':
     main()
