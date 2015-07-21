@@ -16,6 +16,10 @@ import turtle as t
 import numpy as np
 #from math import sin, cos, atan2
 from scipy.integrate import ode
+
+# global variables for testing, so I can see the positions results of the sim
+L = np.zeros([102,4])
+S = np.zeros([102,4])
     
 class Body(t.Turtle):
     '''
@@ -27,7 +31,7 @@ class Body(t.Turtle):
     Pen: string which gives color of pen for animation
     Location: Array containing position in (x,y) coordinate system, in m
     Velocity: Array containing velocity in (x,y) coordinate system in m/s
-    COMflag: Boolean value. True if this body is the center of mass of the 
+    COMflag: Boolean value. True if this body is the Center Of Mass of the 
              system (i.e. the largest body)
     '''
 
@@ -47,8 +51,8 @@ class Body(t.Turtle):
         
     def grav(self, other):
         '''
-        Accepts as input another Body object and returns the value -GM/r^3 
-        which is needed for the differential equation set.
+        other: another Body object
+        Returns the value -GM/r^3 which is needed for the diffeqs.
         '''
         
         G = 6.67384 * 10**(-11)
@@ -106,11 +110,11 @@ def solve_system(bodies, SCALE, AU):
     dt = 24*3600                # Step = 1 day; in seconds
     t0 = 0
     tf = 24*3600*100            # Total time of simulation = 100 days
-    steps = tf / dt
+    steps = tf / dt + 2         # deals with indexing stupidity
     
-    all_body_data = {}          # will contain data, format: [Body]: [array], steps rows, 4 col
+    all_body_data = {}          # Format: [Body]: [array], steps rows, 4 col
      
-    # Get the GMr3 between a body and another. Currently only works for 2.
+    # Get the GMr3 between a body and another. Currently only works for 2 bodies
     for body in bodies:
         for other in bodies:
             if body is other:               # ignore self<>self interaction
@@ -120,17 +124,16 @@ def solve_system(bodies, SCALE, AU):
             # Actual diffeq evaluation
             Y = ode(diffeqs).set_integrator('dopri5')
 
-            # Set initial values and parameters
+            # Set initial values and parameters. r = position, v = velocity, y0 = collection
             r = body.location
             v = body.velocity
             y0 = [r[0], r[1], v[0], v[1]]
             Y.set_f_params(GMr3)
             Y.set_initial_value(y0, t0) 
-            
             result_array = np.zeros([steps,4])
             
             # Loop over the time range to get solutions for all times
-            while Y.successful() and Y.t < tf:                      
+            while Y.successful() and Y.t <= tf:                      
                 Y.integrate(Y.t + dt)
                 new_row = Y.y
                 i = Y.t/dt
@@ -144,35 +147,43 @@ def solve_system(bodies, SCALE, AU):
 
 
 def animate(times, pos_dict):
+    
+    global L, S                             # for testing
+    
     keys = [ key for key in pos_dict.keys() ]
     
-    # Check which key contains the center of mass body and set lg_body to be that key
+    # Assign new variables based on which key in the dictionary has COM flag
     lg_body = keys[0] if keys[0].COMflag == True else keys[1]
     sm_body = keys[0] if keys[0].COMflag == False else keys[1]
     
     # retrieves position arrays from dictionary entries for ease of access
     lg_positions = pos_dict[lg_body]
-    print(lg_positions)
+    L = lg_positions
     sm_positions = pos_dict[sm_body]
-    print(sm_positions)
+    S = sm_positions
     
     # give planet a circle shaped turtle for visual ease
     sm_body.shape('circle')
+    lg_body.penup()
     sm_body.penup()                      # for 1st step; avoid line from ctr to start
-
+    step = 0
+    
     for lg_r, sm_r in zip(lg_positions, sm_positions):
         lg_body.hideturtle()
-        lg_body.penup()
         next_position = [lg_r[0], lg_r[1]]      # Format: rx, ry, vx, vy
         lg_body.goto(next_position)
         lg_body.dot(50)
-                   
-        if not sm_body.isdown():
+        
+        
+        # Move small body to starting position without pen being down to avoid 
+        # drawing a line along orbit radius
+        next_position = [sm_r[0], sm_r[1]] 
+        sm_body.goto(next_position)
+        
+        # Sets pen for small body down after body is no longer at canvas center
+        if step == 2:
             sm_body.pendown()
-            next_position = [sm_r[0], sm_r[1]]
-            sm_body.goto(next_position)      # FIX ME
-        else:
-            sm_body.goto(next_position)      # FIX ME
+        step += 1
     
     
 def main():
@@ -191,7 +202,7 @@ def main():
     sun_loc = np.array([0,0])
     sun_vel = np.array([0,0])
     
-    earth_loc = np.array([-1*AU, 0])
+    earth_loc = np.array([-0.9*AU, 0])
     earth_vel = np.array([0, 35000])              # shows elliptical
     
     #mars_loc = np.array([(-227.9e9/146.6e9)*AU,0])
