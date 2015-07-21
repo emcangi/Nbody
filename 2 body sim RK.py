@@ -103,10 +103,12 @@ def solve_system(bodies, SCALE, AU):
     they are needed here as well.
     '''
     
-    dt = 24*3600                 # Step = 1 day; in seconds
+    dt = 24*3600                # Step = 1 day; in seconds
     t0 = 0
+    tf = 24*3600*100            # Total time of simulation = 100 days
+    steps = tf / dt
     
-    all_body_data = {}          # will contain data, format: [Body]: [Position array]
+    all_body_data = {}          # will contain data, format: [Body]: [array], steps rows, 4 col
      
     # Get the GMr3 between a body and another. Currently only works for 2.
     for body in bodies:
@@ -123,13 +125,20 @@ def solve_system(bodies, SCALE, AU):
             v = body.velocity
             y0 = [r[0], r[1], v[0], v[1]]
             Y.set_f_params(GMr3)
-            Y.set_initial_value(y0, t0)                       
-            Y.integrate(Y.t + dt)
+            Y.set_initial_value(y0, t0) 
             
-            pos_results = Y.y                   # these results are for all time!
+            result_array = np.zeros([steps,4])
+            
+            # Loop over the time range to get solutions for all times
+            while Y.successful() and Y.t < tf:                      
+                Y.integrate(Y.t + dt)
+                new_row = Y.y
+                i = Y.t/dt
+                result_array[i] = new_row
+            
             time_array = Y.t
-            pos_results = pos_results * SCALE       # don't forget to scale!
-            all_body_data[body] = pos_results
+            result_array = result_array * SCALE       # don't forget to scale!
+            all_body_data[body] = result_array
             
     return time_array, all_body_data
 
@@ -143,23 +152,27 @@ def animate(times, pos_dict):
     
     # retrieves position arrays from dictionary entries for ease of access
     lg_positions = pos_dict[lg_body]
+    print(lg_positions)
     sm_positions = pos_dict[sm_body]
+    print(sm_positions)
     
     # give planet a circle shaped turtle for visual ease
     sm_body.shape('circle')
     sm_body.penup()                      # for 1st step; avoid line from ctr to start
 
-    for next_position_lg, next_position_sm in zip(lg_positions, sm_positions):
+    for lg_r, sm_r in zip(lg_positions, sm_positions):
         lg_body.hideturtle()
         lg_body.penup()
-        lg_body.goto(next_position_lg)          # FIX ME
+        next_position = [lg_r[0], lg_r[1]]      # Format: rx, ry, vx, vy
+        lg_body.goto(next_position)
         lg_body.dot(50)
                    
         if not sm_body.isdown():
             sm_body.pendown()
-            sm_body.goto(next_position_sm)      # FIX ME
+            next_position = [sm_r[0], sm_r[1]]
+            sm_body.goto(next_position)      # FIX ME
         else:
-            sm_body.goto(next_position_sm)      # FIX ME
+            sm_body.goto(next_position)      # FIX ME
     
     
 def main():
