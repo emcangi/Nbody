@@ -75,13 +75,7 @@ def diffeqs(t, y, GMr3):
     GMr3, the 1/s^2 part that determines dv/dt. t is unused here but must be 
     passed in according to formatting needs from scipy.integrate.ode.
     '''
-    
-    dy = np.array([0,0,0,0])
-    dy[0] = y[2] 
-    dy[1] = y[3]
-    dy[2] = GMr3 * y[0]
-    dy[3] = GMr3 * y[1]
-    return dy
+    return np.array([y[2], y[3], GMr3 * y[0], GMr3 * y[1]])
 
 
 def solve_system(bodies, SCALE, AU):
@@ -92,7 +86,7 @@ def solve_system(bodies, SCALE, AU):
     
     dt = 24*3600                # Step = 1 day; in seconds
     t0 = 0
-    tf = 24*3600*101            # Total time of simulation = 100 days
+    tf = 24*3600*1001            # Total time of simulation = 100 days
     steps = tf / dt +1          # deals with indexing stupidity
     
     all_body_data = {}          # Format: [Body]: [array], steps rows, 4 col
@@ -184,8 +178,8 @@ def main():
     sun_loc = np.array([0,0])
     sun_vel = np.array([0,0])
     
-    earth_loc = np.array([-0.9*AU, 0])
-    earth_vel = np.array([0, 35000])              # shows elliptical
+    earth_loc = np.array([1*AU, 0])
+    earth_vel = np.array([0, 29800])              # shows elliptical
     
     #mars_loc = np.array([(-227.9e9/146.6e9)*AU,0])
     #mars_vel = np.array([0,24070])
