@@ -64,18 +64,18 @@ class Body(t.Turtle):
 
         dr = self.location - other.location         # distance between objects
         r = np.linalg.norm(dr)
-        GMr3 = -(G * (other.mass + self.mass)) / (r**3)
+        GMr3 = -(G * other.mass) / (r**3)
 
         return GMr3
 
 
-def diffeqs(t, y, GMr3):
+def diffeqs(t, y, GMr3, r_other):
     '''
     Accepts as input y, a 4-vector of initial conditions rx, ry, vx, vy, and
     GMr3, the 1/s^2 part that determines dv/dt. t is unused here but must be
     passed in according to formatting needs from scipy.integrate.ode.
     '''
-    return np.array([y[2], y[3], GMr3 * y[0], GMr3 * y[1]])
+    return [y[2], y[3], GMr3 * (y[0] - r_other[0]), GMr3 * (y[1] - r_other[1])]
 
 
 def solve_system(bodies, timestep):
@@ -100,7 +100,7 @@ def solve_system(bodies, timestep):
             if body is other:
                 continue
 
-            # Get the INITIAL "gravitational field" (?) value
+            # Get the INITIAL "gravitational field" (?) value; array
             GMr3 = body.grav(other)
 
             # Establish solver and integration method (Runge-Kutta, order 4)
@@ -109,9 +109,10 @@ def solve_system(bodies, timestep):
             # Initial values. r = position, v = velocity, y0 = formatted vector
             r = body.location
             v = body.velocity
+            r_other = other.location
             y0 = [r[0], r[1], v[0], v[1]]
             Y.set_initial_value(y0, t0)
-            Y.set_f_params(GMr3)
+            Y.set_f_params(GMr3, r_other)
             result_array = np.zeros([steps, 4])
 
             # Loop over the time range to get solutions for all times
@@ -126,7 +127,7 @@ def solve_system(bodies, timestep):
 
                 # Recalculate GM/r^3 and reapply to solver
                 GMr3 = body.grav(other)
-                Y.set_f_params(GMr3)
+                Y.set_f_params(GMr3, r_other)
 
             time_array = Y.t
             all_body_data[body] = result_array * SCALE
@@ -181,7 +182,7 @@ def main():
     t.bgcolor('black')
 
     # planet selector. 0 = Mercury, 1 = Venus, ... 7 = Neptune
-    planet = 7
+    planet = 3
 
     # Initial parameters. a = semimajor axis in AU; e = eccentricity;
     # mass = mass in kg. given in arrays where first item is Mercury and last
@@ -194,7 +195,7 @@ def main():
     names = ['Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn',
              'Uranus', 'Neptune']
     colors = ['red', 'yellow', 'blue', 'red', 'red', 'orange', 'cyan', 'blue']
-    pensize = [1/13, 3/13, 4/13, 26/13, 2, 26/13, 20/13, 19/13]
+    pensize = [1/13, 3/13, 4/13, 2/13, 27/13, 2, 20/13, 19/13]
 
     a = axis_set[planet]
     e = e_set[planet]
