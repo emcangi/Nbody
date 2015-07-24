@@ -6,7 +6,8 @@ Author: Eryn Cangi
 For CIERA REU summer 2015
 
 2-body simulation, using Newtonian mechanics and the Runge-Kutta method to
-solve the two-body problem.
+solve the two-body problem. Implements celestial bodies as Turtle objects with
+custom parameters.
 
 Adapted from http://fiftyexamples.readthedocs.org/en/latest/gravity.html
 License is MIT license, free to use and modify as desired for any use.
@@ -150,16 +151,20 @@ def animate(times, pos_dict):
     lg_positions = pos_dict[lg_body]
     sm_positions = pos_dict[sm_body]
 
-    # give planet a circle shaped turtle for familiar visuals
+    # pen attributes
     sm_body.shape('circle')
     sm_body.resizemode("user")
     n = sm_body.size
     sm_body.shapesize(n, n, n)
-    lg_body.penup()
     sm_body.penup()
+    sm_body.speed(0)
+    sm_body.hideturtle()
+
+    lg_body.penup()
+    lg_body.speed(0)
+    lg_body.hideturtle()
 
     for lg_r, sm_r in zip(lg_positions, sm_positions):
-        lg_body.hideturtle()
         next_position = [lg_r[0], lg_r[1]]      # Format: rx, ry, vx, vy
         lg_body.goto(next_position)
         lg_body.dot(lg_body.size)
