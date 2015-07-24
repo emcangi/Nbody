@@ -16,6 +16,7 @@ License is MIT license, free to use and modify as desired for any use.
 import turtle as t
 import numpy as np
 from math import sin, cos, atan2
+import scipy as sp
 
     
 class Body(t.Turtle):
@@ -54,13 +55,13 @@ class Body(t.Turtle):
         dr = self.location - other.location         # format [dx, dy]
         r = np.linalg.norm(dr) 
         
-        # Force, from Newton's law
+        # Force of gravity
         fg = -(G * self.mass * other.mass) / (r**2)
         
         # Calculate direction; use of atan2 guarantees accuracy of sign
-        theta = atan2(dr[1], dr[0])
+        theta = atan2(dr[1], dr[0])       # may not need?
         
-        # Calculate force components, which need to be returned
+        # X and Y components of gravity
         gravity = np.array([fg * cos(theta), fg * sin(theta)])
         
         return gravity
