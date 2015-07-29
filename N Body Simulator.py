@@ -10,7 +10,7 @@ simulate interactions of N bodies. Uses matplotlib for animation.
 import numpy as np
 
 G = 6.67384 * 10**(-11)
-AU = 149.6e9                               # 149.6 billion meters = 1 AU
+AU = 149.6e9                             # 149.6 billion meters = 1 AU
 
 # BODY CLASS ------------------------------------------------------------------
 class Body(object):
@@ -30,16 +30,15 @@ class Body(object):
     def __init__(self, name, mass, color, pos, vel, size, COM):
         self.name = name
         self.mass = mass
-        self.color = color
         self.pos = pos
         self.vel = vel
         self.size = size
+        self.color = color
         self.COMflag = COM
 
     def __repr__(self):
-        return '{name} at {pos} with speed {vel}, mass {mass}'\
-               .format(name=self.name, pos=self.pos, vel=self.vel,
-                       mass=self.mass)
+        return '{name} at {pos} with speed {vel}'\
+               .format(name=self.name, pos=self.pos, vel=self.vel)
 
     def grav(self, other):
         '''
@@ -79,7 +78,7 @@ def diffeqs(t, y, dvx_dt, dvy_dt):
     np.sum & axis = 1 sums each sub-array and returns an array of results
     '''
 
-    return [y[:, 2], y[:, 3], np.sum(dvx_dt, axis=1), np.sum(dvy_dt, axis=1)]
+    return np.array([y[:, 2], y[:, 3], dvx_dt, dvy_dt])
 
 
 def vectorize_ic(bodies, N):
@@ -87,7 +86,7 @@ def vectorize_ic(bodies, N):
     Given the list of bodies, this function sends their initial positions and
     velocities into a 4-vector that can be used by the diffeq solver.
     '''
-    i = 0
+
     y0 = []                         # initial conditions array
 
     for body in bodies:
@@ -95,7 +94,6 @@ def vectorize_ic(bodies, N):
         r = body.pos
         v = body.vel
         y0.append(np.array([r[0], r[1], v[0], v[1]]))
-        i += 1
 
     return y0
 
@@ -108,8 +106,8 @@ def vectorize_dvdt_terms(bodies, N):
     differential equation.
     '''
 
-    dvx_dt_all = np.ndarray(shape=(N, N-1, 1))
-    dvy_dt_all = np.ndarray(shape=(N, N-1, 1))
+    dvx_dt_all = np.ndarray(shape=(N))
+    dvy_dt_all = np.ndarray(shape=(N))
 
     i = 0
     for body in bodies:
@@ -126,10 +124,9 @@ def vectorize_dvdt_terms(bodies, N):
             dvx_dt[j] = GMr3 * dr_x
             dvy_dt[j] = GMr3 * dr_y
             j += 1
-        dvx_dt_all[i] = dvx_dt
-        dvy_dt_all[i] = dvy_dt
+        dvx_dt_all[i] = np.sum(dvx_dt)
+        dvy_dt_all[i] = np.sum(dvy_dt)
         i += 1
-
     return dvx_dt_all, dvy_dt_all
 
 
@@ -163,30 +160,38 @@ def solve_system(bodies, timestep, t_steps):
     # Shape: Rows = time steps, columns = bodies, cells = [rx, ry, vx, vy]
     state_array = np.ndarray(shape=(t_steps, N, 4))
 
+    step = 0
     # Loop over the time range to get solutions for all times
     while Y.successful() and Y.t <= tf:
+        print("Here's what I'm working with for initial conditions: ")
+        print(y0)
+        print("---end initial conditions---")
+        print()
         Y.integrate(Y.t + dt)
-        step = Y.t/dt - 2                    # Get current step number
-
-        # Result fmt: [[r_x1, r_y1, v_x1, v_y1], ...[r_xN, r_yN, v_xN, v_yN]].
-        # Valid for this time step only!
-        state_array[step] = Y.y
-
+        state_array[step] = Y.y # fmt: [[rx1, ry1, vx1, vy1]..[r_xN, r_yN, v_xN, v_yN]]
+        print("Current results: ")
+        print(Y.y)
+        print()
         # Update the body's location and velocity with new values
         for body, body_vals in zip(bodies, state_array[step]):
             body.pos = np.array([body_vals[0], body_vals[1]])
-            body.vel = np.array([body_vals[1], body_vals[2]])
+            body.vel = np.array([body_vals[2], body_vals[3]])
+            print(body)
+        print("Successfully updated positions and velocities")
+        print()
 
         # Recalculate dv/dt terms and update parameters
         dvx_dt, dvy_dt = vectorize_dvdt_terms(bodies, N)
+        print("NEW ACCELERATION: " + "x: " + str(dvx_dt) + " y: " + str(dvy_dt))
         Y.set_f_params(dvx_dt, dvy_dt)
 
-    time_array = Y.t
+        step += 1
 
+    print("Went through " + str(step) + " steps")
     # Convert results to AU
     state_array = state_array * SCALE
 
-    return time_array, state_array
+    return state_array
 
 
 # ANIMATION -------------------------------------------------------------------
@@ -209,7 +214,7 @@ def run_simulation(state_array, t_steps):
 
     # set up figure for animation. axes limits are in AU.
     fig = plt.figure()
-    ax = plt.axes(xlim=(-2, 2), ylim=(-2, 2), aspect='equal')
+    ax = plt.axes(xlim=(-4, 4), ylim=(-4, 4), aspect='equal')
 
     # Plot objects to animate--will contain vectors so we plot the ensemble
     objects, = ax.plot([], [], 'bo', ms=6)
@@ -247,7 +252,7 @@ def run_simulation(state_array, t_steps):
     anim = animation.FuncAnimation(fig, animate, frames=t_steps,
                               interval=10, blit=True, init_func=init_anim)
 
-    anim.save('Nbody.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
+    anim.save('NbodyTEST.mp4', fps=30, extra_args=['-vcodec', 'libx264'])
 
     plt.show()
 
@@ -258,8 +263,6 @@ def main():
     Sets the parameters and calls the functions which solve the system and then
     animate it. Planet and sun sizes are not to scale.
     '''
-
-    from math import sqrt
 
     planet1 = 2
     planet2 = 3
@@ -293,7 +296,7 @@ def main():
     e2 = e_set[planet2]                         # eccentricity
     m2 = mass_set[planet2]
     x0_2 = a2 * (1 + e2)                        # Planet initial position
-    v_y0_2 = 3e4                                # Planet initial velocity
+    v_y0_2 = 24131                                # Planet initial velocity
     color2 = colors[planet2]
     name2 = names[planet2]
     size2 = size[planet2]
@@ -317,13 +320,14 @@ def main():
     t_steps = 300
 
     # Create body objects
-    body1 = Body(name1, m1, color1, loc1, vel1, size1, False)
-    body2 = Body(name2, m2, color2, loc2, vel2, size2, False)
-    body3 = Body(name3, m3, color3, loc3, vel3, size3, True)
+    body1 = Body(name1, m1, color1, loc1, vel1, size1, False) # earth
+    body2 = Body(name2, m2, color2, loc2, vel2, size2, False) # mars
+    body3 = Body(name3, m3, color3, loc3, vel3, size3, True) # sun
 
     # Do the actual work
-    time, data = solve_system([body1, body2, body3], dt, t_steps)
-    run_simulation(data, t_steps)
+    data = solve_system([body1, body2, body3], dt, t_steps)
+    #print(data)
+    #run_simulation(data, t_steps)
 
 if __name__ == '__main__':
     main()
