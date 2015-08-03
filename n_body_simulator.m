@@ -1,27 +1,25 @@
-function n_body_simulator()
 % Simulates N identical bodies in circular orbits
 
 % Global constants. M = mass of planet, say, Saturn.
-G = 6.67384 * 10^(-11);
-M = 5.683 *  10^(26);
+G = 6.67384e-11;
+M = 5.683e26;
 AU = 149.6e9;  
-N = 10000;
+N = 100;
 
 % Parameters - radius of orbit set, theta ranges over the unit circle
 r = 0.5 * AU;
 theta = (2*pi - 0) .* rand(N,1); 
-v_max = sqrt(G * M / r);
-
+v = sqrt(G * M / r);
 
 initial_conditions = zeros(N, 4);            % sun's ICs are all 0
-masses = 0.01 * ones(N,1);
+masses = 1e24 * ones(N,1);
 
 % Calculate initial conditions in x, y coordinates and fill array
  for body=1:N
      rx0 = r * cos(theta(body));
      ry0 = r * sin(theta(body));
-     vx0 = -v_max * sin(theta(body));
-     vy0 =  v_max * cos(theta(body));
+     vx0 = -v * sin(theta(body));
+     vy0 =  v * cos(theta(body));
      initial_conditions(body, 1) = rx0;
      initial_conditions(body, 2) = ry0;
      initial_conditions(body, 3) = vx0;
@@ -32,6 +30,7 @@ masses = 0.01 * ones(N,1);
 initial_conditions(1, :) = 0;
 masses(1) = M;
 
+% Do the math
 [time, data] = main(1, masses, initial_conditions);
 
 % Clean up the data and calculate absolute positions
@@ -48,10 +47,8 @@ fig = figure(1);
 whitebg(1,'k');
 hold on;
 
-colors = ['y', 'm', 'y', 'b', 'r', 'r', 'y' 'c', 'b'];
-
-for i=1:9
-    plot(time, absolute_positions(:,i), colors(i));
+for i=1:N
+    plot(time, absolute_positions(:,i));
 end
 
 title('Body distances from orbited mass');

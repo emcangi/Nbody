@@ -8,7 +8,7 @@ function [time, position_data] = main(years, mass, ic_array)
 ics = ic_array;                         % Column vector of row vectors
 masses = mass;                          % Masses of bodies: Column vector
 N = size(ics, 1);                       % Number of bodies
-dt = 24*3600;                           % Time step = 1 earth year
+dt = 24*3600;                           % Time step = 1 earth day
 t_steps = 365 * years;
 
 % Flatten the initial conditions array. Transpose to get 1D column vector.
