@@ -1,43 +1,56 @@
-function [T_data, raw_data, AUdata] = solve_system(body_ics, timestep, ...
-                                              days, masses, N, tol)
-% Solves the second order differential equation d^2r/dt^2 = -(GM/r^3)r
-% Where r is a vector. Accepts the initial conditions for position and 
-% velocity and masses as column vectors.
+function [T_data, raw_data, AUdata]=solve_system(y0, dt, days, mass, N, tol)
+% Solves the differential equation, handles collision events and aggregates
+% output data into arrays. Input:
+% y0 = initial conditions
+% dt = points in time at which to record data
+% days = number of days to run simulation
+% mass = masses of all objects
+% N = number of bodies
+% tol = error tolerance, both relative and absolute
 
-% Variables and parameters
+% VARIABLES AND PARAMETERS ------------------------------------------------
+% dists contains separations between each object and each other object. It
+% must remain a global variable so it can be acquired from the collision
+% event handler; it is used to identify which objects had collisions.
 global dists;
+
 AU = 149.6e9;   
 SCALE = 1 / AU;
 ti = 0;
-dt = timestep;
-tf = dt * (days - 1);                % -1 makes row num right in time array
-y0 = body_ics;
-t_out = zeros(days+1, 1);            % hold accumulated times
-y_out = zeros(days+1, N * 4);        % hold accumulated data
-y_out(1, :) = y0';                      
-fill_start = 2;                     % start filling after first entry 
-                                    % (which is initial conditions)
+tf = dt * (days - 1);               % -1 ensures correct number of rows in 
+                                    % time array
+                                     
+% t_out and y_out serve the same purpose as the solver outputs T and Y, but
+% these are used in simulations where collisions occur to manually keep
+% track of the data since events stop the simulation and require restarting
+t_out = zeros(days+1, 1);
+y_out = zeros(days+1, N * 4);
+y_out(1, :) = y0';
+fill_start = 2;                     % used to track where data left off 
+                                    % after an event. first row is ICs
 in_progress = true;
 
-% Establish solver and integration method (Runge-Kutta, order 4)
+% SET SOLVER AND INTEGRATION METHOD (Runge-Kutta, order 4) ----------------
 options = odeset('RelTol', tol, 'AbsTol', tol, 'Events', @events);
-anonfunc = @(t,y)(diffeqs(t, y, masses, N));
+anonfunc = @(t,y)(diffeqs(t, y, mass, N));
 
-% Runs the integration. Events cause it to stop, so it is in a loop. 
+% RUN THE SIMULATION ------------------------------------------------------
+% Looped due to necessity of stopping and restarting after events
 while in_progress
     time = ti:dt:tf;
     [T,Y,~,YE,IE] = ode45(anonfunc, time, y0, options); 
 
+    % runs if YE has values, i.e. an event occurred
     if ~isempty(YE)
-        % runs if YE has values, i.e. an event occurred
-        disp('Collision!');
-        nt = length(T) - 1;             % successful steps minus ICs
-        t_out(fill_start:fill_start + nt -1) = T(2:nt +1);    
+        disp('Collision!');         % Testing purposes
+        nt = length(T) - 1;         % successful steps minus ICs
+        t_out(fill_start:fill_start + nt -1) = T(2:nt +1);      % save data
         y_out(fill_start:fill_start + nt -1, :) = Y(2:nt+1, :);
-        event_value = dists(IE);
+        event_value = dists(IE);    % find which bodies had collision
 
-        % Dists was originally in an upper triangular matrix. This
-        % block converts it back with sneaky tricks.
+        % In event handler, dists is an upper triangular matrix. This
+        % block converts it back so we can find the right bodies. See event
+        % handler for details on the format of this.
         temp = tril(ones(N),-1);
         temp(~~temp) = dists;
         dists_ut = temp';
@@ -46,14 +59,16 @@ while in_progress
         % represent a body that was involved in the collision.
         [b1, b2] = find(dists_ut==event_value);
 
-        % Collision handling and velocity reassignment
+        % Collect velocities at time of collision from the flattened array
         vxi1 = YE(3 + 4*(b1-1));          % body1 x velocity, initial
         vyi1 = YE(4 + 4*(b1-1));          % body1 y velocity, initial
         vxi2 = YE(3 + 4*(b2-1));          % body2 x velocity, initial
         vyi2 = YE(4 + 4*(b2-1));          % body2 y velocity, initial
 
-        [vxf1, vyf1, vxf2, vyf2, fail] = collision(vxi1, vyi1, vxi2, vyi2); % REPLACE
+        % Calculate post-collision velocities and a success flag
+        [vxf1, vyf1, vxf2, vyf2, fail] = collision(vxi1, vyi1, vxi2, vyi2);
       
+        % Assign new velocities
         if ~fail
             disp('Successful collision!')
             YE(3 + 4*(b1-1)) = vxf1;          % body1 x velocity, after
@@ -62,60 +77,66 @@ while in_progress
             YE(4 + 4*(b2-1)) = vyf2;          % body2 y velocity, after
             y0 = YE;                            % reset initial conditions
         end
+        % NEED TO CREATE A CONDITION FOR A FAILED COLLISION - SHUT DOWN SIM
         
-        % NEW TIME START HERE - might need to fix time step
+        % Identify the time index to restart the simulation on
         ti = T(nt);
-        fprintf('New start time: day %f \n', ti/timestep)
+        fprintf('New start time: day %f \n', ti/dt)
         fill_start = fill_start + nt;
     end
 
-    % Finished integrating if most recent last time step is equal to
-    % the designated ending time step
+    % Find out if finished with all time steps and collect data after the
+    % last collision
     if T(end) >= tf
-        nt = length(T) - 1;             % successful steps minus ICs
+        nt = length(T) - 1;
         t_out(fill_start:end) = T(2:nt);    
         y_out(fill_start:end, :) = Y(2:nt, :);
         break
     end
 end
 
-% Determine which array has the final data. 
-if length(T) >= days                % No event occurred; T is cumulative
+% ASSIGN WHICHEVER DATA ARRAY IS COMPLETE TO OUTPUT ARRAY -----------------
+if length(T) >= days              % No event occurred and T had max entries
     raw_data = Y;
     T_data = T;
-else                                   % Event occurred
+else                              % Event occurred; use the managed data
     raw_data = y_out;
     T_data = t_out;
 end
 
+% Scale the data to be in AUs instead of meters
 AUdata = raw_data * SCALE;
 
+% EVENT HANDLER -----------------------------------------------------------
 function [value, isterminal, direction] = events(~,y)
     % Event function to check if distances between any two particles
-    % are under a certain threshhold (1000 km).     
+    % are under a certain threshhold.     
 
+    % Gather the position data from the flattened array
     rx = y(1:N);
     ry = y(N+1:2*N);
-    N_separations = N * (N-1) / 2;
+    pairs = N * (N-1) / 2;      % number of unique object pairs
 
-    % Find all distances between particles on each axis. 3rd and 6th
+    % Find all distances between objects on each axis. 3rd and 6th
     % lines use sneaky tricks to flatten upper triangular matrix into a
     % column vector in which elements are filled by reading the upper
     % triangular matrix left to right, top to bottom. 
     [x_pos1, x_pos2] = meshgrid(rx);
     x_diffs = x_pos1 - x_pos2;
     x_dists = x_diffs(tril(true(size(x_diffs)), -1));
+    
     [y_pos1, y_pos2] = meshgrid(ry);
     y_diffs = y_pos1 - y_pos2;
     y_dists = y_diffs(tril(true(size(y_diffs)), -1));
 
-    % Calculate distances and convert to column vector with nonzeros()
+    % Calculate distances and convert to column vector, required for logic
+    % of event handling below
     dists = sqrt(x_dists .^ 2 + y_dists .^ 2);
 
-    % detect when objects are within 1 km of each other and stop if so
-    % MAY NOT WORK IF THERE ARE MORE THAN ONE COLLISION? CHECK LATER
+    % detect when objects are close enough for collision and stop if so
+    % *** MAY NOT WORK IF THERE ARE MORE THAN ONE COLLISION? CHECK LATER
     value = dists - 100000;
-    isterminal = ones(N_separations, 1);
-    direction = -1 * ones(N_separations, 1);
+    isterminal = ones(pairs, 1);
+    direction = -1 * ones(pairs, 1);
 end
 end

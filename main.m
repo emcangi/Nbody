@@ -1,38 +1,38 @@
-function [time, body_data] = main(years, mass, ic_array, tol)
-% Main logic for solving the N-body problem. Receives initial conditions
-% for bodies, number of years to simulate. Outputs a tidy 3D array of
-% results for each body over time. The format of the results is:
-% rows x columns x sheets = time steps x body parameters x bodies.
+function [time, body_data] = main(years, masses, ic_array, tol, dt)
+% Main logic for solving the N-body problem. Receives: masses, initial
+% conditions for all bodies, number of years to simulate and a tolerance
+% value. Outputs a 3D array of position and velocity data for each body
+% over time. Rows represent steps in time. Columns represent data values in
+% this format: x position, y position, x velocity, y velocity. Each sheet
+% represents one body in the system.
 
-% Initial Conditions
-ics = ic_array;                         % Column vector of row vectors
-masses = mass;                          % Masses of bodies: Column vector
-N = size(ics, 1);                       % Number of bodies
-dt = 24*3600;                           % Time step = 1 earth day
-days = 365 * years;                  % Set to 1 less than a year's num
-                                        % of days due to indexing troubles
+% INITIAL CONDITIONS ------------------------------------------------------
+N = size(ic_array, 1);
+days = 365 * years;
 
-% Flatten the initial conditions array to get 1D column vector.
-% format: [x1, x2,...xn, y1...yn, vx1...vxn, vy1...vyn]^T
-ics = reshape(ics, [1, N * 4])';
+% Solver only accepts flat arrays, so this line flattens the initial
+% conditions array to get 1D column vector.
+% format: [x1; x2;...xn; y1...yn; vx1...vxn; vy1...vyn]
+ics = reshape(ic_array, [1, N * 4])';
 
-% Do the actual work. results are in the following format:
-% [x1, x2...xn, y1, y2...yn, vx1, vx2...vxn, vy1, vy2...vyn]
+% SOLVE THE SYSTEM --------------------------------------------------------
+% Result format: [x1; x2;...xn; y1...yn; vx1...vxn; vy1...vyn]
+% To return raw data in kg/m/s units, rename the ~ to whatever you want
 [T, ~, AUdata] = solve_system(ics, dt, days, masses, N, tol);
 
-% Makes a matrix where: rows = times, columns = values, pages = bodies
+% UNFLATTEN THE OUTPUT DATA, MAKE OUTPUT ARRAY ----------------------------
 rows = size(T,1);
-AUdata_tidy = zeros(rows, 4, N);
+AUdata_3d = zeros(rows, 4, N);
 
 for m=1:rows
     temp = reshape(AUdata(m, :), [N,4]);
-    for n=1:N
-        AUdata_tidy(m, :, n) = temp(n, :);
+    for p=1:N
+        AUdata_3d(m, :, p) = temp(p, :);
     end
 end
 
-% Results
-time = T * (1/dt);                       % Convert T array to days
-body_data = AUdata_tidy;
+% RESULTS -----------------------------------------------------------------
+time = T * (1/dt);                                % Convert T array to days
+body_data = AUdata_3d;
 
-
+end
