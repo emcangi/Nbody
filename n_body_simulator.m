@@ -11,10 +11,10 @@
 % M = mass of planet, e.g. Saturn. AU = in meters, N = number of bodies. 
 % tolerance is applied to both absolute and relative.
 G = 6.67384e-11;
-M = 5.683e26;
+M = 2e30;%5.683e26;
 AU = 149.6e9;
 N = 40;         
-tolerance = 1e-5;
+tolerance = 1e-2;
 
 % PARAMETERS - CHANGE AS NEEDED -------------------------------------------
 % r = orbital radius, theta = locations, v = magnitude of tangential
@@ -23,7 +23,7 @@ tolerance = 1e-5;
 % step to examine in seconds. (24*3600 = 1 earth day)
 
 % Random seed for body locations
-rng(2);
+rng(1);
 
 r = 0.5 * AU;
 theta = (2*pi - 0) .* rand(N,1); 
@@ -31,6 +31,7 @@ v = sqrt(G * M / r);
 initial_conditions = zeros(N, 4);
 masses = 1e24 * ones(N,1);
 timestep = 24*3600;
+years = 3;
 
 % CALCULATE INITIAL CONDITIONS --------------------------------------------
 % using trigonometry and Cartesian coordinates
@@ -50,7 +51,7 @@ initial_conditions(1, :) = 0;
 masses(1) = M;
 
 % MAIN SIMULATION CALLER AND DATA OUTPUT ----------------------------------
-[time, data] = main(3, masses, initial_conditions, tolerance, timestep);
+[time, data] = main(years, masses, initial_conditions, tolerance, timestep);
 
 % CALCULATE MAGNITUDES OF ORBITAL RADII DURING SIMULATION -----------------
 norm_orbit_radii = zeros(length(time), N);

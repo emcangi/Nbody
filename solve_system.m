@@ -23,10 +23,10 @@ tf = dt * (days - 1);               % -1 ensures correct number of rows in
 % t_out and y_out serve the same purpose as the solver outputs T and Y, but
 % these are used in simulations where collisions occur to manually keep
 % track of the data since events stop the simulation and require restarting
-t_out = zeros(days+1, 1);
-y_out = zeros(days+1, N * 4);
+t_out = zeros(days, 1);           % add 1 because we ti = 0 not ti = 1
+y_out = zeros(days, N * 4);
 y_out(1, :) = y0';
-fill_start = 2;                     % used to track where data left off 
+marker = 2;                     % used to track where data left off 
                                     % after an event. first row is ICs
 in_progress = true;
 
@@ -42,10 +42,23 @@ while in_progress
 
     % runs if YE has values, i.e. an event occurred
     if ~isempty(YE)
-        disp('Collision!');         % Testing purposes
-        nt = length(T) - 1;         % successful steps minus ICs
-        t_out(fill_start:fill_start + nt -1) = T(2:nt +1);      % save data
-        y_out(fill_start:fill_start + nt -1, :) = Y(2:nt+1, :);
+        s = length(T) - 2;         % Saveable data, excluding ICs, events
+        % Identify the time index to restart the simulation on
+        ti = T(s+1);
+        currday = ti/dt;
+        alert = sprintf('Collision on day %d',currday);
+        disp(alert);
+        alert2 = sprintf('Index of collision in meshgrid: %d',IE);
+        disp(alert2);
+        
+        % If s > 0 (saveable data exists), enter it into the output arrays
+        if s > 0
+            t_out(marker:marker + s -1) = T(2:s+1);
+            y_out(marker:marker + s -1, :) = Y(2:s+1, :);
+        elseif s==0 && currday > 0
+            error('Error! Number of saveable events is %d',s);
+        end
+        
         event_value = dists(IE);    % find which bodies had collision
 
         % In event handler, dists is an upper triangular matrix. This
@@ -77,20 +90,17 @@ while in_progress
             YE(4 + 4*(b2-1)) = vyf2;          % body2 y velocity, after
             y0 = YE;                            % reset initial conditions
         end
-        % NEED TO CREATE A CONDITION FOR A FAILED COLLISION - SHUT DOWN SIM
         
-        % Identify the time index to restart the simulation on
-        ti = T(nt);
-        fprintf('New start time: day %f \n', ti/dt)
-        fill_start = fill_start + nt;
+        % Update the marker that shows next fill position in array
+        fprintf('New start time: day %d \n',currday)
+        marker = marker + s;
     end
 
-    % Find out if finished with all time steps and collect data after the
-    % last collision
+    % Find out if finished with all time steps and collect data that
+    % occurred after the last collision
     if T(end) >= tf
-        nt = length(T) - 1;
-        t_out(fill_start:end) = T(2:nt);    
-        y_out(fill_start:end, :) = Y(2:nt, :);
+        t_out(marker:end) = T(2:end);    
+        y_out(marker:end, :) = Y(2:end, :);
         break
     end
 end
@@ -135,7 +145,7 @@ function [value, isterminal, direction] = events(~,y)
 
     % detect when objects are close enough for collision and stop if so
     % *** MAY NOT WORK IF THERE ARE MORE THAN ONE COLLISION? CHECK LATER
-    value = dists - 100000;
+    value = dists - 1000000;
     isterminal = ones(pairs, 1);
     direction = -1 * ones(pairs, 1);
 end

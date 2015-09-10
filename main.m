@@ -20,6 +20,7 @@ ics = reshape(ic_array, [1, N * 4])';
 % To return raw data in kg/m/s units, rename the ~ to whatever you want
 [T, ~, AUdata] = solve_system(ics, dt, days, masses, N, tol);
 
+
 % UNFLATTEN THE OUTPUT DATA, MAKE OUTPUT ARRAY ----------------------------
 rows = size(T,1);
 AUdata_3d = zeros(rows, 4, N);
