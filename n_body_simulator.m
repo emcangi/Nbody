@@ -1,3 +1,4 @@
+% TEST POLAR  
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Script to simulate N identical bodies in circular orbits around a       %
 % massive central object such as a planet.                                %
