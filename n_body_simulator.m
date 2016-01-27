@@ -15,6 +15,7 @@ M = 2e30;%5.683e26;
 AU = 149.6e9;
 N = 40;         
 tolerance = 1e-2;
+hello
 
 % PARAMETERS - CHANGE AS NEEDED -------------------------------------------
 % r = orbital radius, theta = locations, v = magnitude of tangential
