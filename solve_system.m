@@ -70,41 +70,61 @@ while in_progress
             block converts it back so we can find the right bodies. See
             event handler for details on the format of this.
         %}
-        temp = tril(ones(N),-1);
-        temp(~~temp) = dists;
-        dists_ut = temp';
+        unflat_YE = tril(ones(N),-1);
+        unflat_YE(~~unflat_YE) = dists;
+        dists_ut = unflat_YE';
 
         %{
             Find the row and column of the event value. These each
             represent a body that was involved in the collision.
         %}
         [b1, b2] = find(dists_ut==event_value);
-
-        % Collect positions at time of collision from flattened array
-        rxi1 = YE(1 + 4*(b1-1));          % body1 x position, initial
-        ryi1 = YE(2 + 4*(b1-1));          % body1 y position, initial
-        rxi2 = YE(1 + 4*(b2-1));          % body2 x position, initial
-        ryi2 = YE(2 + 4*(b2-1));          % body2 y position, initial
         
-        % Collect velocities at time of collision from the flattened array
-        vxi1 = YE(3 + 4*(b1-1));          % body1 x velocity, initial
-        vyi1 = YE(4 + 4*(b1-1));          % body1 y velocity, initial
-        vxi2 = YE(3 + 4*(b2-1));          % body2 x velocity, initial
-        vyi2 = YE(4 + 4*(b2-1));          % body2 y velocity, initial
+        fprintf('Colliding bodies: %d, %d',b1,b2);
+        fprintf('\n');
 
+        % Create an unflattened copy of YE so it's easier to grab the right
+        % bodies
+        YE_unflat = reshape(YE(1, :), [N,4]);
+        
+        % Collect pre-collision data for one of the bodies
+        rxi1 = YE_unflat(b1, 1);
+        ryi1 = YE_unflat(b1, 2);
+        vxi1 = YE_unflat(b1, 3);
+        vyi1 = YE_unflat(b1, 4);
+        
+        % Collect pre-collision data for the other of the bodies
+        rxi2 = YE_unflat(b2, 1);
+        ryi2 = YE_unflat(b2, 2);
+        vxi2 = YE_unflat(b2, 3);
+        vyi2 = YE_unflat(b2, 4);
+        
+        % Print stuff for testing
+        fprintf('Precollision data:\n');
+        fprintf('Body %d position: (%.2e, %.2e)\n',b1,rxi1,ryi1);
+        fprintf('Body %d velocity: (%.2e, %.2e)\n',b1,vxi1,vyi1);
+        fprintf('Body %d position: (%.2e, %.2e)\n',b2,rxi2,ryi2);
+        fprintf('Body %d velocity: (%.2e, %.2e)\n',b2,vxi2,vyi2);
+        
         % Calculate post-collision velocities and a success flag
         [vxf1, vyf1, vxf2, vyf2, fail] = collision(rxi1, ryi1, rxi2, ryi2, ...
                                         vxi1, vyi1, vxi2, vyi2, dt);
+                                    
+        fprintf('Postcollision data:\n');
+        fprintf('Body %d velocity: (%.2e, %.2e)\n',b1,vxf1,vyf1);
+        fprintf('Body %d velocity: (%.2e, %.2e)\n',b2,vxf2,vyf2);
       
         % Assign new velocities
         if ~fail
             disp('Successful collision!')
             disp('')
-            YE(3 + 4*(b1-1)) = vxf1;          % body1 x velocity, after
-            YE(4 + 4*(b1-1)) = vyf1;          % body1 y velocity, after
-            YE(3 + 4*(b2-1)) = vxf2;          % body2 x velocity, after
-            YE(4 + 4*(b2-1)) = vyf2;          % body2 y velocity, after
-            y0 = YE;                            % reset initial conditions
+            YE_unflat(b1,3) = vxf1; % body1 x velocity, after
+            YE_unflat(b1,4) = vyf1; % body1 y velocity, after
+            YE_unflat(b2,3) = vxf2; % body2 x velocity, after
+            YE_unflat(b2,4) = vyf2; % body2 y velocity, after
+            
+            % Reflatten YE
+            y0 = reshape(YE_unflat, [1, N * 4])'; % reset initial conditions
         end
         
         % Update the marker that shows next fill position in array
@@ -142,7 +162,7 @@ function [value, isterminal, direction] = events(~,y)
         under a certain threshhold.     
     %}
     
-    threshold = 1e5;
+    threshold = 1e6;
     
     % Gather the position data from the flattened array
     rx = y(1:N);

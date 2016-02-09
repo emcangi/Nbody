@@ -27,12 +27,12 @@ AU = 149.6e9;                                   % 1 AU in meters
 r = 0.5 * AU;
 M = 5.683e26;%2e30;%        % kg
 m = 1e24;
-N = 10;
-tolerance = 1e-4;
+N = 20;
+tolerance = 1e-2;
 masses = m * ones(N,1);
-dt = 24*3600;
-years = 1;
-min_sep = 0.1;             % For best results do not decrease below 0.05
+dt = 12*3600;
+years = 3;                  % Must be an integer.
+min_sep = 0.05;              % For best results do not decrease below 0.05
 
 %%% CALCULATE INITIAL CONDITIONS ------------------------------------------
 %{ 
@@ -105,13 +105,14 @@ end
 title(sprintf('Orbital radii vs. time (N=%d, M=%.2e)',N,M));
 xlabel('Time (days)');
 ylabel('Position (AU)');
-ylim([0.49 0.51]);
+ylim([0 1]);
 xlim([0,years*365]);
 
 %%% PLOT INITIAL CONDITIONS -----------------------------------------------
 
 subplot(2,1,2)
 hold on;
+axis equal;
 
 for idx=1:N
     scatter(initial_conditions(idx,1)/AU, initial_conditions(idx,2)/AU); 
